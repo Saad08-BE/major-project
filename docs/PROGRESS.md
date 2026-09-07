@@ -83,8 +83,8 @@ the source file.
 ## Environment
 
 - Development target: Apple Silicon MacBook Air M1 with 8 GB RAM.
-- Repository path: `/Users/saad/Documents/ChatGPT/local privacy-based health care intelligence system`
-- Git branch: `main`; Phase 1 checkpoint pending.
+- Repository path: `/Users/saad/Documents/major-project/local privacy-based health care intelligence system`
+- Git branch: `main`; Phase 1 checkpoint: `b624f88` (`setup project structure`).
 
 ## Resume Instructions
 
