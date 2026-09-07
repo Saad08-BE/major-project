@@ -6,7 +6,7 @@ Local Privacy-Based Healthcare Intelligence System
 
 ## Current Phase
 
-Phase 1 — Architecture and project foundation
+Phase 2 — Dataset analysis & preprocessing
 
 ## Phase Status
 
@@ -16,77 +16,61 @@ COMPLETE
 
 - Phase 0 — Repository and requirements inspection
 - Phase 1 — Architecture and project foundation
+- Phase 2 — Dataset analysis & preprocessing
 
 ## Current Work
 
-Created the runnable, local-only Python project foundation. It provides a
-Streamlit application shell, validated configuration, project-local storage
-policy, an Ollama-only adapter, initial healthcare safety checks, privacy-aware
-logging, dependency manifest, and automated unit tests.
+Profiled `data/raw/Indian_healthcare.csv` without modifying the original source file.
+Built an automated, reproducible preprocessing pipeline with:
+1. Data profiling report (`docs/DATA_PROFILE.md`) documenting all 100,000 rows, 19 columns, and anomaly detection (e.g. filtering negative blood glucose measurements).
+2. `DatasetPreprocessor` module in `app/ingestion/dataset_preprocessor.py` with privacy enforcement (strictly excludes `Patient_ID` from semantic representations and LLM context).
+3. Configurable stratified sampling (processed sample of 10,000 records for fast development & low RAM footprint on M1 8GB).
+4. Structured cohort aggregations (`data/processed/cohort_aggregates.json`) calculating symptom-to-diagnosis frequencies, diagnosis-to-treatment outcome associations, and clinical measurement averages.
+5. Standalone CLI runner `scripts/preprocess_dataset.py`.
+6. Full unit test suite in `tests/test_preprocessing.py`.
 
 ## Next Step
 
-Begin Phase 2: profile `data/raw/Indian_healthcare.csv` reproducibly, document
-data types/quality/retrieval roles, and design preprocessing without modifying
-the source file.
+Begin Phase 3: Local retrieval & indexing (building lightweight local vector index and structured retrieval engine).
 
 ## Important Decisions
 
-- The application is local-only: no cloud LLM, embedding API, vector
-  database, document processing, or patient-data API.
-- Streamlit is the planned local UI.
-- The retrieval design will keep structured clinical fields separate from
-  semantic text and uploaded PDF chunks.
-- The first semantic index will use a lightweight local disk-persisted
-  implementation behind an interface; its suitability will be measured.
-- The embedding default is local `all-MiniLM-L6-v2` (384 dimensions),
-  configurable and subject to setup validation.
-- The LLM adapter is Ollama with a locally available 3B-class quantized
-  instruct model. It must fail clearly if unavailable and must never fall back
-  to a cloud service.
-- PDF ingestion will use local PyMuPDF extraction with page metadata. OCR is
-  not included until explicitly implemented.
+- The raw source dataset `data/raw/Indian_healthcare.csv` remains strictly untouched.
+- `Patient_ID` is stripped during preprocessing to protect patient privacy; no patient-lookup capability exists in the system.
+- Sampling defaults to 10,000 records (with stratified distribution over Primary_Diagnosis) to ensure fast, low-memory execution on 8 GB M1 Mac while retaining representative statistics.
+- Preprocessing produces both clean record-level JSONL for vector embedding and pre-calculated cohort aggregations for fast statistical querying.
 
 ## Files Added
 
-- `docs/ARCHITECTURE.md`
-- `docs/PROGRESS.md`
-- `.env.example`
-- `.gitignore`
-- `README.md`
-- `requirements.txt`
-- `pyproject.toml`
-- `app/`
-- `tests/`
+- `docs/DATA_PROFILE.md`
+- `scripts/profile_dataset.py`
+- `scripts/preprocess_dataset.py`
+- `app/ingestion/__init__.py`
+- `app/ingestion/dataset_preprocessor.py`
+- `tests/test_preprocessing.py`
+- `PROJECT_INSTRUCTIONS.md`
 
 ## Files Modified
 
-- `docs/ARCHITECTURE.md`
 - `docs/PROGRESS.md`
 
 ## Tests
 
-- Dataset discovery: passed — `data/raw/Indian_healthcare.csv` is present,
-  contains 100,000 data rows and 19 columns, has no blank values or inconsistent
-  row widths, and remains unmodified.
-- Unit tests: passed — 7 safety and configuration tests via
-  `python3 -m unittest discover -v`.
-- Static syntax and whitespace checks: passed.
+- Dataset profiling: passed — 100,000 rows profiled, 81 outlier/invalid rows identified and filtered.
+- Dataset preprocessing: passed — 10,000 records sampled and saved with cohort aggregates and metadata in `data/processed/`.
+- Automated test suite: 11 tests passed in 0.004s (`python3 -m unittest discover -v`).
 
 ## Known Issues
 
-- Python application dependencies have not been installed yet.
-- Ollama and the selected local model have not been installed/configured yet.
-- Dataset profiling, preprocessing, retrieval, document ingestion, and local
-  generation are not implemented until later phases.
+- Semantic embedding model execution requires `sentence-transformers` package installation in setup.
+- Local Ollama runtime will be integrated in Phase 4.
 
 ## Environment
 
 - Development target: Apple Silicon MacBook Air M1 with 8 GB RAM.
 - Repository path: `/Users/saad/Documents/major-project/local privacy-based health care intelligence system`
-- Git branch: `main`; Phase 1 checkpoint: `b624f88` (`setup project structure`).
+- Git branch: `main`.
 
 ## Resume Instructions
 
-Read this file, inspect `git status`, then start Phase 2 with a read-only
-dataset profile. Do not modify `data/raw/Indian_healthcare.csv`.
+Read this file, inspect `git status`, then start Phase 3 (Local retrieval & indexing).
