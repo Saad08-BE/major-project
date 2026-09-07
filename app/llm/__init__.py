@@ -1,6 +1,21 @@
-"""Adapters for approved, local language-model services only."""
+"""Local language model adapters, medical prompts, and RAG pipeline."""
 
-from .ollama_client import LocalServiceUnavailable, OllamaClient
+from app.llm.ollama_client import (
+    LLMGenerationResult,
+    LocalServiceUnavailable,
+    ModelUnavailableError,
+    OllamaClient,
+)
+from app.llm.prompts import HEALTHCARE_SYSTEM_PROMPT, build_grounded_prompt
+from app.llm.rag_pipeline import HealthcareRAGPipeline, RAGResponse
 
-__all__ = ["LocalServiceUnavailable", "OllamaClient"]
-
+__all__ = [
+    "HEALTHCARE_SYSTEM_PROMPT",
+    "HealthcareRAGPipeline",
+    "LLMGenerationResult",
+    "LocalServiceUnavailable",
+    "ModelUnavailableError",
+    "OllamaClient",
+    "RAGResponse",
+    "build_grounded_prompt",
+]
