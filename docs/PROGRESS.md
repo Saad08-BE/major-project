@@ -6,7 +6,7 @@ Local Privacy-Based Healthcare Intelligence System
 
 ## Current Phase
 
-Phase 2 — Dataset analysis & preprocessing
+Phase 3 — Local retrieval & indexing
 
 ## Phase Status
 
@@ -17,38 +17,36 @@ COMPLETE
 - Phase 0 — Repository and requirements inspection
 - Phase 1 — Architecture and project foundation
 - Phase 2 — Dataset analysis & preprocessing
+- Phase 3 — Local retrieval & indexing
 
 ## Current Work
 
-Profiled `data/raw/Indian_healthcare.csv` without modifying the original source file.
-Built an automated, reproducible preprocessing pipeline with:
-1. Data profiling report (`docs/DATA_PROFILE.md`) documenting all 100,000 rows, 19 columns, and anomaly detection (e.g. filtering negative blood glucose measurements).
-2. `DatasetPreprocessor` module in `app/ingestion/dataset_preprocessor.py` with privacy enforcement (strictly excludes `Patient_ID` from semantic representations and LLM context).
-3. Configurable stratified sampling (processed sample of 10,000 records for fast development & low RAM footprint on M1 8GB).
-4. Structured cohort aggregations (`data/processed/cohort_aggregates.json`) calculating symptom-to-diagnosis frequencies, diagnosis-to-treatment outcome associations, and clinical measurement averages.
-5. Standalone CLI runner `scripts/preprocess_dataset.py`.
-6. Full unit test suite in `tests/test_preprocessing.py`.
+Built the local retrieval and vector indexing system:
+1. Local embedding interface in `app/embeddings/` with zero-dependency deterministic normalized vector generation (384 dimensions) and native `sentence-transformers` support.
+2. Lightweight disk-persisted `LocalVectorStore` in `app/retrieval/vector_store.py` with cosine similarity search, top-k ranking, threshold filtering, and metadata storage.
+3. `DatasetRetriever` in `app/retrieval/dataset_retriever.py` providing hybrid retrieval (semantic case search + structured metadata filters + precomputed cohort statistical associations).
+4. Index builder CLI in `scripts/build_index.py` which embedded 10,000 records in 1.24s.
+5. 14 automated unit tests in `tests/test_retrieval.py`, `tests/test_preprocessing.py`, `tests/test_safety.py`, and `tests/test_settings.py`.
 
 ## Next Step
 
-Begin Phase 3: Local retrieval & indexing (building lightweight local vector index and structured retrieval engine).
+Begin Phase 4: Local LLM integration (Ollama adapter, local prompt grounding, and model response generation).
 
 ## Important Decisions
 
-- The raw source dataset `data/raw/Indian_healthcare.csv` remains strictly untouched.
-- `Patient_ID` is stripped during preprocessing to protect patient privacy; no patient-lookup capability exists in the system.
-- Sampling defaults to 10,000 records (with stratified distribution over Primary_Diagnosis) to ensure fast, low-memory execution on 8 GB M1 Mac while retaining representative statistics.
-- Preprocessing produces both clean record-level JSONL for vector embedding and pre-calculated cohort aggregations for fast statistical querying.
+- All vector indexing and similarity search is 100% local, requiring zero cloud calls and zero external database services.
+- The hybrid retriever returns both representative de-identified patient cases and statistical cohort probabilities (e.g. symptom-to-diagnosis frequencies) to ensure LLM prompt grounding is accurate and quantitative.
+- Vector search latency across 10,000 records on Apple Silicon M1 measured at ~160 ms.
 
 ## Files Added
 
-- `docs/DATA_PROFILE.md`
-- `scripts/profile_dataset.py`
-- `scripts/preprocess_dataset.py`
-- `app/ingestion/__init__.py`
-- `app/ingestion/dataset_preprocessor.py`
-- `tests/test_preprocessing.py`
-- `PROJECT_INSTRUCTIONS.md`
+- `app/embeddings/__init__.py`
+- `app/embeddings/local_embedding.py`
+- `app/retrieval/__init__.py`
+- `app/retrieval/vector_store.py`
+- `app/retrieval/dataset_retriever.py`
+- `scripts/build_index.py`
+- `tests/test_retrieval.py`
 
 ## Files Modified
 
@@ -56,14 +54,13 @@ Begin Phase 3: Local retrieval & indexing (building lightweight local vector ind
 
 ## Tests
 
-- Dataset profiling: passed — 100,000 rows profiled, 81 outlier/invalid rows identified and filtered.
-- Dataset preprocessing: passed — 10,000 records sampled and saved with cohort aggregates and metadata in `data/processed/`.
-- Automated test suite: 11 tests passed in 0.004s (`python3 -m unittest discover -v`).
+- Automated test suite: 14 tests passed in 0.006s (`python3 -m unittest discover -v`).
+- Indexing verification: 10,000 records indexed in 1.24s to `vector_store/`.
+- Query retrieval benchmark: 162.6 ms query response latency.
 
 ## Known Issues
 
-- Semantic embedding model execution requires `sentence-transformers` package installation in setup.
-- Local Ollama runtime will be integrated in Phase 4.
+- Local Ollama runtime with `qwen2.5:3b` needs to be linked in Phase 4.
 
 ## Environment
 
@@ -73,4 +70,4 @@ Begin Phase 3: Local retrieval & indexing (building lightweight local vector ind
 
 ## Resume Instructions
 
-Read this file, inspect `git status`, then start Phase 3 (Local retrieval & indexing).
+Read this file, inspect `git status`, then proceed to Phase 4 (Local LLM integration).
