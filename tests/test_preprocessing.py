@@ -113,6 +113,25 @@ class PreprocessingTests(unittest.TestCase):
             self.assertEqual(loaded_json["primary_diagnosis"], "Type 2 Diabetes")
             self.assertNotIn("Patient_ID", loaded_json)
 
+    def test_chatdoctor_preprocessing(self) -> None:
+        """Test ChatDoctor record cleaning, validation, and serialization."""
+        from app.ingestion.chatdoctor_preprocessor import ChatDoctorPreprocessor, ChatDoctorRecord
+
+        preprocessor = ChatDoctorPreprocessor(min_input_len=10, min_output_len=15)
+        valid_row = {
+            "instruction": "Answer medical questions",
+            "input": "I have persistent fever and sore throat for 3 days.",
+            "output": "Please take paracetamol and stay well hydrated. Consult an ENT specialist if worsening.",
+        }
+        self.assertTrue(preprocessor.is_valid_row(valid_row))
+
+        short_row = {"input": "Help", "output": "See doctor"}
+        self.assertFalse(preprocessor.is_valid_row(short_row))
+
+        record = ChatDoctorRecord.from_raw_dict(valid_row, record_id=1)
+        self.assertIn("persistent fever", record.semantic_text)
+        self.assertIn("Doctor Clinical Guidance", record.semantic_text)
+
 
 if __name__ == "__main__":
     unittest.main()

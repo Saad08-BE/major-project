@@ -22,16 +22,18 @@ class RetrievalContext:
 
 
 class DatasetRetriever:
-    """Retrieval manager supporting vector similarity, structured metadata filtering, and cohort lookup."""
+    """Retrieval manager supporting vector similarity over clinical cases, doctor consultations, and cohort lookup."""
 
     def __init__(
         self,
-        vector_store: LocalVectorStore,
-        embedding_model: BaseEmbeddingModel,
+        vector_store: LocalVectorStore | None = None,
+        chatdoctor_store: LocalVectorStore | None = None,
+        embedding_model: BaseEmbeddingModel | None = None,
         cohort_aggregates: dict[str, Any] | None = None,
     ) -> None:
         self.vector_store = vector_store
-        self.embedding_model = embedding_model
+        self.chatdoctor_store = chatdoctor_store
+        self.embedding_model = embedding_model or get_embedding_model()
         self.cohort_aggregates = cohort_aggregates or {}
 
     @classmethod
@@ -41,9 +43,24 @@ class DatasetRetriever:
         processed_data_dir: Path,
         embedding_model: BaseEmbeddingModel | None = None,
     ) -> "DatasetRetriever":
-        """Load vector store and cohort statistics from local project paths."""
-        store = LocalVectorStore.load(vector_store_dir, base_name="healthcare_index")
+        """Load available vector stores and cohort statistics from local project paths."""
         emb = embedding_model or get_embedding_model()
+
+        # Load primary healthcare index if present
+        store = None
+        if (vector_store_dir / "healthcare_index_vectors.json").exists():
+            try:
+                store = LocalVectorStore.load(vector_store_dir, base_name="healthcare_index")
+            except Exception:
+                pass
+
+        # Load ChatDoctor consultations index if present
+        chatdoctor_store = None
+        if (vector_store_dir / "chatdoctor_index_vectors.json").exists():
+            try:
+                chatdoctor_store = LocalVectorStore.load(vector_store_dir, base_name="chatdoctor_index")
+            except Exception:
+                pass
 
         cohort_file = processed_data_dir / "cohort_aggregates.json"
         aggregates = {}
@@ -51,24 +68,50 @@ class DatasetRetriever:
             with open(cohort_file, mode="r", encoding="utf-8") as f:
                 aggregates = json.load(f)
 
-        return cls(vector_store=store, embedding_model=emb, cohort_aggregates=aggregates)
+        return cls(
+            vector_store=store,
+            chatdoctor_store=chatdoctor_store,
+            embedding_model=emb,
+            cohort_aggregates=aggregates,
+        )
 
     def semantic_search(
         self,
         query: str,
         top_k: int = 5,
-        min_similarity: float = 0.25,
+        min_similarity: float = 0.20,
         filter_fn: Callable[[dict[str, Any]], bool] | None = None,
     ) -> list[VectorSearchResult]:
         """Perform semantic similarity search using local embeddings."""
         if not query.strip():
             return []
         query_vector = self.embedding_model.embed_text(query)
-        return self.vector_store.search(
+        results = []
+        if self.vector_store:
+            results.extend(
+                self.vector_store.search(
+                    query_vector=query_vector,
+                    top_k=top_k,
+                    min_similarity=min_similarity,
+                    filter_fn=filter_fn,
+                )
+            )
+        return results
+
+    def search_doctor_consultations(
+        self,
+        query: str,
+        top_k: int = 3,
+        min_similarity: float = 0.15,
+    ) -> list[VectorSearchResult]:
+        """Search ChatDoctor consultation records for clinical guidance."""
+        if not self.chatdoctor_store or not query.strip():
+            return []
+        query_vector = self.embedding_model.embed_text(query)
+        return self.chatdoctor_store.search(
             query_vector=query_vector,
             top_k=top_k,
             min_similarity=min_similarity,
-            filter_fn=filter_fn,
         )
 
     def structured_search(
@@ -77,6 +120,8 @@ class DatasetRetriever:
         limit: int = 5,
     ) -> list[VectorSearchResult]:
         """Filter dataset records by exact structured metadata criteria."""
+        if not self.vector_store:
+            return []
         def match_filter(meta: dict[str, Any]) -> bool:
             for k, v in filters.items():
                 if k not in meta:
@@ -145,7 +190,7 @@ class DatasetRetriever:
         self,
         query: str,
         top_k: int = 5,
-        min_similarity: float = 0.25,
+        min_similarity: float = 0.20,
         structured_filters: dict[str, Any] | None = None,
     ) -> RetrievalContext:
         """Assemble a complete hybrid retrieval context for the user query."""
@@ -164,10 +209,22 @@ class DatasetRetriever:
             filter_fn=filter_fn,
         )
 
+        doctor_consultations = self.search_doctor_consultations(
+            query=query,
+            top_k=3,
+            min_similarity=0.15,
+        )
+
         cohort_stats = self.get_cohort_statistics_for_query(query)
 
         # Build clean formatted context block for LLM prompt
-        context_lines = ["--- EVIDENCE FROM LOCAL HEALTHCARE DATASET ---"]
+        context_lines = ["--- EVIDENCE FROM LOCAL HEALTHCARE KNOWLEDGE BASE ---"]
+
+        if doctor_consultations:
+            context_lines.append("\n[Verified Doctor Consultations & Clinical Guidance]:")
+            for idx, c in enumerate(doctor_consultations, 1):
+                context_lines.append(f"Consultation {idx} (Relevance: {c.score:.2f}):")
+                context_lines.append(f"{c.text}\n")
 
         if cohort_stats.get("symptom_evidence"):
             context_lines.append("\n[Cohort Statistical Associations]:")
@@ -186,15 +243,18 @@ class DatasetRetriever:
             context_lines.append("\n[Representative Clinical Records (De-Identified)]:")
             for idx, rec in enumerate(evidence_records, 1):
                 context_lines.append(f"Case {idx} (Similarity: {rec.score:.2f}): {rec.text}")
-        else:
-            context_lines.append("\n[Representative Clinical Records]: No high-confidence matching individual records.")
+
+        if not doctor_consultations and not cohort_stats and not evidence_records:
+            context_lines.append("\n[Evidence]: No high-confidence matching clinical records or consultations.")
 
         context_lines.append("\n--- END OF EVIDENCE ---")
         formatted_block = "\n".join(context_lines)
 
+        all_evidence = doctor_consultations + evidence_records
+
         return RetrievalContext(
             query=query,
-            evidence_records=evidence_records,
+            evidence_records=all_evidence,
             cohort_statistics=cohort_stats,
             formatted_context_block=formatted_block,
         )

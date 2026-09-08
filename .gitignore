@@ -3,12 +3,11 @@
 __pycache__/
 .pytest_cache/
 *.py[cod]
+.DS_Store
+*/.DS_Store
 
 # Local healthcare data and generated artifacts must not be committed.
-data/raw/
-data/processed/
-data/documents/
+data/
 vector_store/
 models/
 logs/
-

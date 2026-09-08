@@ -113,7 +113,7 @@ class RetrievalTests(unittest.TestCase):
         # Test hybrid retrieve_context
         ctx = retriever.retrieve_context(query="frequent urination and blurred vision Type 2 Diabetes", top_k=2)
         self.assertIn("Type 2 Diabetes", ctx.formatted_context_block)
-        self.assertIn("EVIDENCE FROM LOCAL HEALTHCARE DATASET", ctx.formatted_context_block)
+        self.assertIn("EVIDENCE FROM LOCAL HEALTHCARE KNOWLEDGE BASE", ctx.formatted_context_block)
         self.assertIn("Cohort Statistical Associations", ctx.formatted_context_block)
         self.assertIn("Insulin Therapy", ctx.formatted_context_block)
 
