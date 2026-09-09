@@ -6,7 +6,7 @@ Local Privacy-Based Healthcare Intelligence System
 
 ## Current Phase
 
-Phase 5 — PDF & medical document ingestion
+Phase 6 — Unified hybrid RAG pipeline
 
 ## Phase Status
 
@@ -20,50 +20,67 @@ COMPLETE
 - Phase 3 — Local retrieval & indexing
 - Phase 4 — Local LLM integration
 - Phase 5 — PDF & medical document ingestion
+- Phase 6 — Unified hybrid RAG pipeline
 
 ## Current Work
 
-Implemented the local PDF document ingestion and retrieval system:
-1. `PDFIngestor` in `app/ingestion/pdf_ingestor.py` supporting local PyMuPDF extraction with page-level granularity, text cleaning, sentence-aware sliding window chunking (`chunk_size=600`, `chunk_overlap=100`), and error handling for corrupted/empty PDFs.
-2. `DocumentRetriever` in `app/retrieval/document_retriever.py` providing semantic search over local document chunks with human-readable page citations (`e.g. Clinical_Guidelines.pdf (Page 2)`).
-3. Document ingestion CLI `scripts/ingest_documents.py` and sample medical PDF generator `scripts/create_sample_pdf.py`.
-4. Ingested and indexed sample clinical practice guidelines in `data/documents/` into `vector_store/document_index_*`.
-5. 23 automated unit tests passing across all modules in `tests/`.
+Implemented the complete unified RAG pipeline connecting all evidence sources into one coherent query-to-answer loop:
+
+1. **`app/llm/rag_pipeline.py`** — `HealthcareRAGPipeline` upgraded to:
+   - Accept `DocumentRetriever` as a second component alongside `DatasetRetriever`.
+   - Query both sources in sequence for every valid question.
+   - Merge dataset evidence (cohort statistics + ChatDoctor consultations + semantic cases) with PDF document chunks into a single unified LLM prompt.
+   - Expose `document_sources: list[DocumentSearchResult]` on `RAGResponse` so the UI can display page-level citations separately from dataset evidence.
+   - Offline fallback now also summarises local document evidence when the LLM is unavailable.
+   - `initialize()` factory automatically loads `DocumentRetriever` from `vector_store/document_index_*`.
+
+2. **`app/llm/prompts.py`** — `build_grounded_prompt` extended with an optional `document_context_block` parameter. System prompt updated to instruct the LLM to cite all three source types (cohort stats, clinical cases, uploaded documents).
+
+3. **`tests/test_rag_pipeline.py`** — 17 new unit and integration tests covering:
+   - Safety blocking (blocked queries never reach retrieval/LLM).
+   - Both retrieval sources called for valid queries.
+   - `document_sources` and `retrieved_cases` correctly populated.
+   - Online LLM path (`is_offline_fallback=False`).
+   - Offline fallback path including document evidence.
+   - Empty-evidence offline fallback.
+   - Urgent query prepends URGENT MEDICAL NOTICE.
+   - Latency field non-negative.
+   - Disclaimer always present.
+   - `_build_document_context_block` helper.
+   - `build_grounded_prompt` with and without document blocks.
+
+4. **`tests/test_llm.py`** — Updated three existing pipeline tests to pass the new `document_retriever` positional argument.
 
 ## Next Step
 
-Begin Phase 6: Complete unified hybrid RAG pipeline (connecting structured dataset statistical cohorts + ChatDoctor consultations + local PDF document evidence into the unified query and LLM generation loop).
+Begin Phase 7: Streamlit Web UI — chat interface, document upload, sources/evidence panel, system status bar, and persistent healthcare disclaimers.
 
 ## Important Decisions
 
-- PDF processing is 100% local; no cloud OCR or external document parsers are used.
-- Every chunk preserves document ID, filename, and page number for precise academic and clinical citations.
-- Document vector store is persisted on disk under `vector_store/` alongside dataset indices.
+- `document_sources` is kept separate from `retrieved_cases` in `RAGResponse` so the UI can render dataset evidence and PDF citations in distinct panels.
+- The `DocumentRetriever` is loaded silently; if no document index exists the pipeline still works with dataset evidence only.
+- The LLM prompt clearly labels three evidence sections to prevent confusion between data sources.
 
 ## Files Added
 
-- `app/ingestion/pdf_ingestor.py`
-- `app/retrieval/document_retriever.py`
-- `scripts/create_sample_pdf.py`
-- `scripts/ingest_documents.py`
-- `tests/test_pdf_ingestion.py`
-- `data/documents/Clinical_Guidelines_Respiratory_Fever.pdf`
+- `tests/test_rag_pipeline.py`
 
 ## Files Modified
 
-- `app/ingestion/__init__.py`
-- `app/retrieval/__init__.py`
+- `app/llm/rag_pipeline.py`
+- `app/llm/prompts.py`
+- `tests/test_llm.py`
 - `docs/PROGRESS.md`
 
 ## Tests
 
-- Automated test suite: 23 tests passed in 0.017s (`python3 -m unittest discover -v`).
-- Document ingestion test: extracted and indexed 7 citation-aware chunks from `data/documents/`.
-- Page citation verification: verified page number extraction and semantic search with citation strings.
+- Automated test suite: **40 tests passed in ~0.04s** (`python3 -m unittest discover -v`).
+- All previous 23 tests still pass (no regressions).
+- 17 new tests added covering the unified pipeline.
 
 ## Known Issues
 
-- Unified pipeline integration (Phase 6) will combine dataset cohorts + ChatDoctor + document PDFs into a single unified search and synthesis engine.
+- None at the pipeline level. Phase 7 (Streamlit UI) will expose the full system interactively.
 
 ## Environment
 
@@ -73,4 +90,4 @@ Begin Phase 6: Complete unified hybrid RAG pipeline (connecting structured datas
 
 ## Resume Instructions
 
-Read this file, inspect `git status`, then start Phase 6 (Unified RAG pipeline).
+Read this file, inspect `git status`, then start Phase 7 (Streamlit Web UI).

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 import time
 from typing import Any
@@ -11,6 +11,7 @@ from app.config.settings import AppSettings
 from app.llm.ollama_client import LLMGenerationResult, LocalServiceUnavailable, ModelUnavailableError, OllamaClient
 from app.llm.prompts import HEALTHCARE_SYSTEM_PROMPT, build_grounded_prompt
 from app.retrieval.dataset_retriever import DatasetRetriever, RetrievalContext
+from app.retrieval.document_retriever import DocumentRetriever, DocumentSearchResult
 from app.retrieval.vector_store import VectorSearchResult
 from app.safety import SafetyDecision, healthcare_disclaimer, validate_question
 
@@ -23,6 +24,7 @@ class RAGResponse:
     answer: str
     retrieved_cases: list[VectorSearchResult]
     cohort_statistics: dict[str, Any]
+    document_sources: list[DocumentSearchResult]
     disclaimer: str
     llm_model: str | None
     is_offline_fallback: bool
@@ -31,16 +33,32 @@ class RAGResponse:
     safety_decision: SafetyDecision
 
 
+def _build_document_context_block(doc_results: list[DocumentSearchResult]) -> str:
+    """Format document search results into a context block for the LLM prompt."""
+    if not doc_results:
+        return ""
+
+    lines = ["--- EVIDENCE FROM LOCAL MEDICAL DOCUMENTS ---"]
+    for idx, doc in enumerate(doc_results, 1):
+        lines.append(
+            f"\n[Document {idx}] Citation: {doc.citation} (Relevance: {doc.score:.2f}):\n{doc.text}"
+        )
+    lines.append("\n--- END OF DOCUMENT EVIDENCE ---")
+    return "\n".join(lines)
+
+
 class HealthcareRAGPipeline:
-    """Orchestrates safety checks, hybrid retrieval, and local LLM generation."""
+    """Orchestrates safety checks, hybrid retrieval (dataset + documents), and local LLM generation."""
 
     def __init__(
         self,
         retriever: DatasetRetriever,
+        document_retriever: DocumentRetriever,
         ollama_client: OllamaClient,
         settings: AppSettings,
     ) -> None:
         self.retriever = retriever
+        self.document_retriever = document_retriever
         self.ollama = ollama_client
         self.settings = settings
 
@@ -54,17 +72,33 @@ class HealthcareRAGPipeline:
             vector_store_dir=app_settings.paths.vector_store_dir,
             processed_data_dir=app_settings.paths.processed_data_dir,
         )
+        document_retriever = DocumentRetriever.from_local_files(
+            vector_store_dir=app_settings.paths.vector_store_dir,
+        )
         ollama = OllamaClient(
             base_url=app_settings.ollama_base_url,
             timeout_seconds=60.0,
         )
-        return cls(retriever=retriever, ollama_client=ollama, settings=app_settings)
+        return cls(
+            retriever=retriever,
+            document_retriever=document_retriever,
+            ollama_client=ollama,
+            settings=app_settings,
+        )
 
     def answer_question(self, question: str) -> RAGResponse:
-        """Run full RAG pipeline for a user question."""
+        """Run full unified RAG pipeline for a user question.
+
+        Evidence sources, in priority order:
+          1. Safety triage (blocks disallowed queries immediately).
+          2. Dataset: semantic clinical cases + ChatDoctor consultations + cohort statistics.
+          3. Local documents: semantic PDF chunk search with page-level citations.
+          4. Unified LLM prompt grounded on all available evidence.
+          5. Graceful offline fallback when Ollama is unavailable.
+        """
         start_time = time.time()
 
-        # 1. Safety Triage
+        # --- 1. Safety Triage ---
         safety = validate_question(question)
         if not safety.allowed:
             return RAGResponse(
@@ -72,6 +106,7 @@ class HealthcareRAGPipeline:
                 answer=safety.user_message,
                 retrieved_cases=[],
                 cohort_statistics={},
+                document_sources=[],
                 disclaimer=healthcare_disclaimer(),
                 llm_model=None,
                 is_offline_fallback=False,
@@ -80,20 +115,29 @@ class HealthcareRAGPipeline:
                 safety_decision=safety,
             )
 
-        # 2. Hybrid Retrieval
+        # --- 2. Dataset Hybrid Retrieval ---
         context: RetrievalContext = self.retriever.retrieve_context(
             query=question,
             top_k=self.settings.top_k,
             min_similarity=self.settings.similarity_threshold,
         )
 
-        # 3. Prompt Construction
+        # --- 3. Document Semantic Retrieval ---
+        doc_results: list[DocumentSearchResult] = self.document_retriever.search(
+            query=question,
+            top_k=4,
+            min_similarity=self.settings.similarity_threshold,
+        )
+        document_context_block = _build_document_context_block(doc_results)
+
+        # --- 4. Unified Prompt Construction ---
         grounded_prompt = build_grounded_prompt(
             question=question,
             evidence_context_block=context.formatted_context_block,
+            document_context_block=document_context_block if doc_results else None,
         )
 
-        # 4. Local LLM Generation (with graceful offline fallback)
+        # --- 5. Local LLM Generation (with graceful offline fallback) ---
         answer_text = ""
         used_model = None
         is_fallback = False
@@ -108,12 +152,12 @@ class HealthcareRAGPipeline:
             answer_text = llm_result.response_text
             used_model = llm_result.model
         except (LocalServiceUnavailable, ModelUnavailableError) as exc:
-            # Graceful degradation: synthesize retrieved evidence directly
+            # Graceful degradation: synthesize retrieved evidence directly without LLM
             is_fallback = True
             used_model = None
-            answer_text = self._build_offline_evidence_summary(question, context, str(exc))
+            answer_text = self._build_offline_evidence_summary(question, context, doc_results, str(exc))
 
-        # 5. Attach Disclaimers & Urgent Warning
+        # --- 6. Attach Disclaimers & Urgent Warning ---
         disclaimer = healthcare_disclaimer()
         if safety.urgent:
             answer_text = (
@@ -129,6 +173,7 @@ class HealthcareRAGPipeline:
             answer=answer_text,
             retrieved_cases=context.evidence_records,
             cohort_statistics=context.cohort_statistics,
+            document_sources=doc_results,
             disclaimer=disclaimer,
             llm_model=used_model,
             is_offline_fallback=is_fallback,
@@ -141,6 +186,7 @@ class HealthcareRAGPipeline:
         self,
         question: str,
         context: RetrievalContext,
+        doc_results: list[DocumentSearchResult],
         offline_reason: str,
     ) -> str:
         """Construct a structured evidence summary when the local LLM is offline."""
@@ -168,7 +214,15 @@ class HealthcareRAGPipeline:
             lines.append("**Matching De-Identified Cases**:")
             for idx, case in enumerate(context.evidence_records[:3], 1):
                 lines.append(f"{idx}. {case.text}")
-        else:
-            lines.append("No direct case matches met the similarity threshold.")
+            lines.append("")
+
+        if doc_results:
+            lines.append("**Local Medical Document Evidence**:")
+            for idx, doc in enumerate(doc_results[:3], 1):
+                lines.append(f"{idx}. [{doc.citation}]: {doc.text[:300]}...")
+            lines.append("")
+
+        if not context.evidence_records and not context.cohort_statistics and not doc_results:
+            lines.append("No direct evidence met the similarity threshold.")
 
         return "\n".join(lines)

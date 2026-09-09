@@ -10,12 +10,16 @@ from app.llm.ollama_client import LLMGenerationResult, LocalServiceUnavailable, 
 from app.llm.prompts import HEALTHCARE_SYSTEM_PROMPT, build_grounded_prompt
 from app.llm.rag_pipeline import HealthcareRAGPipeline
 from app.retrieval.dataset_retriever import DatasetRetriever, RetrievalContext
+from app.retrieval.document_retriever import DocumentRetriever
 from app.retrieval.vector_store import VectorSearchResult
 
 
 class LLMTests(unittest.TestCase):
     def setUp(self) -> None:
         self.settings = AppSettings.from_environment()
+        # Shared no-op document retriever stub used in all pipeline tests
+        self._mock_doc_retriever = MagicMock(spec=DocumentRetriever)
+        self._mock_doc_retriever.search.return_value = []
 
     def test_grounded_prompt_construction(self) -> None:
         """Verify prompt template properly encapsulates evidence and instructions."""
@@ -39,7 +43,9 @@ class LLMTests(unittest.TestCase):
         """Verify pipeline rejects patient ID lookups immediately without calling LLM."""
         mock_retriever = MagicMock(spec=DatasetRetriever)
         mock_ollama = MagicMock(spec=OllamaClient)
-        pipeline = HealthcareRAGPipeline(mock_retriever, mock_ollama, self.settings)
+        pipeline = HealthcareRAGPipeline(
+            mock_retriever, self._mock_doc_retriever, mock_ollama, self.settings
+        )
 
         response = pipeline.answer_question("Find patient details for ID 21D74F65-E20")
         self.assertFalse(response.safety_decision.allowed)
@@ -71,7 +77,9 @@ class LLMTests(unittest.TestCase):
         mock_ollama = MagicMock(spec=OllamaClient)
         mock_ollama.generate.side_effect = LocalServiceUnavailable("Ollama offline")
 
-        pipeline = HealthcareRAGPipeline(mock_retriever, mock_ollama, self.settings)
+        pipeline = HealthcareRAGPipeline(
+            mock_retriever, self._mock_doc_retriever, mock_ollama, self.settings
+        )
         response = pipeline.answer_question("What causes high fever and joint pain?")
 
         self.assertTrue(response.is_offline_fallback)
@@ -95,7 +103,9 @@ class LLMTests(unittest.TestCase):
             total_duration_seconds=1.2,
         )
 
-        pipeline = HealthcareRAGPipeline(mock_retriever, mock_ollama, self.settings)
+        pipeline = HealthcareRAGPipeline(
+            mock_retriever, self._mock_doc_retriever, mock_ollama, self.settings
+        )
         response = pipeline.answer_question("I have severe chest pain and shortness of breath")
 
         self.assertTrue(response.urgent_warning)
