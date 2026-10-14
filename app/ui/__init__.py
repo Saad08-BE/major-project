@@ -6,10 +6,12 @@ from app.ui.input_controls import render_input_controls
 from app.ui.settings_dialog import render_settings_dialog
 from app.ui.sidebar import render_sidebar_navigation
 from app.ui.status import render_sidebar_status
+from app.ui.theme import apply_gemini_theme
 from app.ui.uploader import render_document_uploader
 
 __all__ = [
     "ChatSession",
+    "apply_gemini_theme",
     "get_current_session",
     "initialize_session_state",
     "render_document_uploader",

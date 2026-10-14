@@ -1,4 +1,4 @@
-"""Local Streamlit entry point for the healthcare intelligence system."""
+"""Local Streamlit entry point for the healthcare intelligence system with Gemini-styled UI."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from app.ui.evidence_viewer import render_evidence_panel
 from app.ui.input_controls import render_input_controls
 from app.ui.settings_dialog import render_settings_dialog
 from app.ui.sidebar import render_sidebar_navigation
+from app.ui.theme import apply_gemini_theme
 
 
 @st.cache_resource(show_spinner="Initializing local healthcare intelligence engine...")
@@ -21,15 +22,18 @@ def get_pipeline(settings: AppSettings) -> HealthcareRAGPipeline:
 
 
 def run() -> None:
-    """Render the full local-only Streamlit healthcare RAG application."""
+    """Render the full local-only Streamlit healthcare RAG application in Gemini-inspired dark UI."""
     st.set_page_config(
-        page_title="Local Healthcare Intelligence",
-        page_icon="🩺",
+        page_title="HealthAI",
+        page_icon="✨",
         layout="wide",
         initial_sidebar_state="expanded",
     )
 
-    # 1. Configuration & Path Verification
+    # 1. Apply Dark Gemini Aesthetic
+    apply_gemini_theme(st)
+
+    # 2. Configuration & Path Verification
     try:
         settings = AppSettings.from_environment()
         settings.paths.create_runtime_directories()
@@ -37,10 +41,10 @@ def run() -> None:
         st.error(f"Local configuration error: {exc}")
         st.stop()
 
-    # 2. Session State Initialization
+    # 3. Session State Initialization
     initialize_session_state(st)
 
-    # 3. Settings Dialog / Modal check
+    # 4. Settings Dialog / Modal check
     if st.session_state.show_settings_dialog:
         with st.container():
             render_settings_dialog(st, settings)
@@ -49,77 +53,103 @@ def run() -> None:
                 st.rerun()
             st.divider()
 
-    # 4. Left Sidebar Navigation: Top "New Chat", Searchable History, Fixed Bottom "Settings"
+    # 5. Left Sidebar Navigation (Matching screenshot: New Chat, Recent, User profile & ⚙️)
     render_sidebar_navigation(st, settings)
 
-    # 5. Main Header & Banner
+    # 6. Main Content Area
     current_session = get_current_session(st)
 
-    if st.session_state.temp_mode:
+    # Top Status Bar
+    top_col1, top_col2 = st.columns([6, 2])
+    with top_col1:
+        if st.session_state.temp_mode:
+            st.markdown(
+                '<span class="temp-pill">🔒 Incognito Consultation (Not saved)</span>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<span class="privacy-pill">🔒 100% Local Apple Silicon Architecture</span>',
+                unsafe_allow_html=True,
+            )
+    with top_col2:
+        st.markdown(
+            f"<div style='text-align: right; color: #9aa0a6; font-size: 0.8rem;'>Model: <code>{settings.llm_model}</code></div>",
+            unsafe_allow_html=True,
+        )
+
+    # 7. Hero Screen (If session is new and has no messages, show "Where should we start?")
+    if not current_session.messages:
         st.markdown(
             """
-            <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 10px 14px; border-radius: 4px; margin-bottom: 15px;">
-                <strong style="color: #b91c1c;">🔒 Temporary Consultation Mode Active:</strong>
-                <span style="color: #991b1b;"> Messages in this session will not be saved to your consultation history.</span>
+            <div class="gemini-hero-container">
+                <div class="gemini-hero-title">Where should we start?</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
+
+        # Quick Suggestion Cards (Clinical & Healthcare focused)
+        sug_col1, sug_col2, sug_col3 = st.columns(3)
+        with sug_col1:
+            if st.button("🩺 Explain acute fever & cough home care", use_container_width=True):
+                st.session_state.preset_prompt = "What supportive home care is advised for acute fever and cough?"
+                st.rerun()
+        with sug_col2:
+            if st.button("📊 Common symptoms of Type 2 Diabetes", use_container_width=True):
+                st.session_state.preset_prompt = "What are the common symptoms and treatment outcomes for Type 2 Diabetes?"
+                st.rerun()
+        with sug_col3:
+            if st.button("📄 Check uploaded medical guidelines", use_container_width=True):
+                st.session_state.preset_prompt = "What clinical guidelines are available in my uploaded documents?"
+                st.rerun()
+
+        st.markdown("<div style='height: 40px;'></div>", unsafe_allow_html=True)
     else:
-        st.markdown(
-            """
-            <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 10px 14px; border-radius: 4px; margin-bottom: 15px;">
-                <strong style="color: #15803d;">🔒 Privacy-First Guarantee:</strong>
-                <span style="color: #166534;"> All queries, healthcare records, medical PDFs, embeddings, and language model inference run <strong>100% locally on your machine</strong>. Zero cloud telemetry.</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        # Render Conversation Message Thread
+        for msg in current_session.messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+                if "response" in msg and msg["response"] is not None:
+                    render_evidence_panel(st, msg["response"])
 
-    st.subheader(f"💬 {current_session.title}")
-    st.caption(f"Educational System Notice: {healthcare_disclaimer()}")
-
-    # 6. Render Current Session Messages
-    for msg in current_session.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-            if "response" in msg and msg["response"] is not None:
-                render_evidence_panel(st, msg["response"])
-
-    # 7. Action Bar above Chat Input (+ PDF, Model Picker, Temporary Chat toggle)
+    # 8. Action Bar above Chat Input (➕ PDF, Model Selector, Incognito toggle)
     selected_model, is_temp = render_input_controls(st, settings)
 
-    # 8. Chat Input Box
-    user_query = st.chat_input("Ask a healthcare question, describe symptoms, or inquire about uploaded medical reports...")
+    # 9. Floating Chat Input Bar (Gemini-style)
+    preset_query = st.session_state.pop("preset_prompt", None)
+    user_query = st.chat_input("Ask a healthcare question or inquire about medical PDFs...")
 
-    if user_query:
+    query_to_run = user_query or preset_query
+
+    if query_to_run:
         # Append user message
-        current_session.add_message(role="user", content=user_query)
+        current_session.add_message(role="user", content=query_to_run)
         with st.chat_message("user"):
-            st.markdown(user_query)
+            st.markdown(query_to_run)
 
         # Run pipeline with preferred model override
         pipeline = get_pipeline(settings)
         with st.chat_message("assistant"):
-            with st.spinner(f"Analyzing local clinical evidence using `{selected_model}`..."):
+            with st.spinner(f"Consulting local clinical evidence using `{selected_model}`..."):
                 response: RAGResponse = pipeline.answer_question(
-                    user_query,
+                    query_to_run,
                     model_override=selected_model,
                 )
 
-            # Display urgent warning if triggered
+            # Urgent notice
             if response.urgent_warning:
-                st.warning("⚠️ **Urgent Medical Notice**: Emergency or severe symptoms detected. Please seek immediate professional or emergency care.")
+                st.warning("⚠️ **Urgent Medical Notice**: Emergency symptoms detected. Seek immediate emergency medical care.")
 
             # Display answer
             st.markdown(response.answer)
 
-            # Execution badge
-            mode_badge = f"🟢 Local LLM ({response.llm_model})" if not response.is_offline_fallback else "🟡 Direct Evidence Synthesis (LLM Offline)"
+            # Metadata footer
+            mode_badge = f"🟢 Local LLM ({response.llm_model})" if not response.is_offline_fallback else "🟡 Offline Evidence Synthesis"
             st.caption(
                 f"⏱️ Latency: `{response.total_latency_seconds:.2f}s` | "
-                f"Execution mode: {mode_badge} | "
-                f"Evidence: `{len(response.document_sources)}` PDF doc(s), `{len(response.retrieved_cases)}` clinical case(s)"
+                f"Mode: {mode_badge} | "
+                f"Citations: `{len(response.document_sources)}` PDF doc(s), `{len(response.retrieved_cases)}` clinical case(s)"
             )
 
             # Render Grounding Evidence Panel
@@ -127,6 +157,12 @@ def run() -> None:
 
             # Save assistant response
             current_session.add_message(role="assistant", content=response.answer, response=response)
+
+    # Footer Disclaimer
+    st.markdown(
+        f"<div style='text-align: center; color: #5f6368; font-size: 0.72rem; margin-top: 30px;'>{healthcare_disclaimer()}</div>",
+        unsafe_allow_html=True,
+    )
 
 
 if __name__ == "__main__":

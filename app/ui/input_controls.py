@@ -1,4 +1,4 @@
-"""UI components for question input controls (Upload button, model picker, and temporary chat)."""
+"""Gemini-styled input action bar with inline PDF upload (+ icon) and model picker."""
 
 from __future__ import annotations
 
@@ -29,12 +29,11 @@ def get_available_models(settings: AppSettings) -> list[str]:
 
 
 def render_input_controls(st_module, settings: AppSettings) -> tuple[str, bool]:
-    """Render the + PDF uploader, Model selector, and Temporary Chat controls above the chat input."""
-    # Top Action Bar
-    col_attach, col_model, col_temp = st_module.columns([1, 4, 3])
+    """Render the + PDF uploader, model dropdown, and temporary chat controls styled like Gemini."""
+    col_attach, col_model, col_spacer, col_temp = st_module.columns([1, 3, 2, 2])
 
     with col_attach:
-        if st_module.button("➕ PDF", help="Upload a medical PDF report or guideline", use_container_width=True):
+        if st_module.button("➕", help="Add / Index local medical PDF report", use_container_width=True):
             st_module.session_state.show_upload_modal = not st_module.session_state.show_upload_modal
             st_module.rerun()
 
@@ -45,30 +44,37 @@ def render_input_controls(st_module, settings: AppSettings) -> tuple[str, bool]:
             current_idx = available_models.index(st_module.session_state.selected_model)
 
         selected_model = st_module.selectbox(
-            "Model",
+            "Select Model",
             options=available_models,
             index=current_idx,
             label_visibility="collapsed",
-            help="Select preferred local Ollama model for synthesis",
-            key="model_selector_dropdown",
+            help="Select local Ollama model (e.g. qwen2.5:3b)",
+            key="gemini_model_selector",
         )
         st_module.session_state.selected_model = selected_model
 
     with col_temp:
         temp_checked = st_module.toggle(
-            "🔒 Temporary Chat",
+            "Incognito",
             value=st_module.session_state.temp_mode,
-            help="In temporary mode, messages are not saved to consultation history.",
+            help="Temporary mode: queries are not stored in conversation history.",
             key="temp_chat_toggle",
         )
         if temp_checked != st_module.session_state.temp_mode:
             st_module.session_state.temp_mode = temp_checked
             st_module.rerun()
 
-    # Inline expander for PDF upload if toggled
+    # Inline expander for PDF upload if + is toggled
     if st_module.session_state.show_upload_modal:
         with st_module.container():
-            st_module.markdown("##### 📄 Add Medical Document to Local Index")
+            st_module.markdown(
+                """
+                <div style="background: #181b20; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; margin-bottom: 8px;">
+                    <div style="font-size: 0.85rem; font-weight: 500; color: #e3e3e3; margin-bottom: 6px;">📄 Add Medical PDF to Local Index</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             uploaded_file = st_module.file_uploader(
                 "Upload medical report or clinical guideline PDF",
                 type=["pdf"],
