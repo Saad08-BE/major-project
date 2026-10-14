@@ -6,7 +6,7 @@ Local Privacy-Based Healthcare Intelligence System
 
 ## Current Phase
 
-Phase 8 — Safety, validation, logging, robustness
+Phase 9 — Testing and evaluation
 
 ## Phase Status
 
@@ -23,60 +23,54 @@ COMPLETE
 - Phase 6 — Unified hybrid RAG pipeline
 - Phase 7 — Streamlit Web UI
 - Phase 8 — Safety, validation, logging, robustness
+- Phase 9 — Testing and evaluation
 
 ## Current Work
 
-Built defensive multi-layer safety filters, operational telemetry logging, and robust failure boundaries:
+Conducted formal benchmarks and system evaluation on Apple Silicon MacBook Air M1 (8 GB RAM):
 
-1. **`app/safety/policy.py`** — Multi-layer safety & triage guardrails:
-   - Buffer overflow / prompt injection guard (rejects queries > 4,000 characters).
-   - Crisis / self-harm detection filter (blocks dangerous self-harm queries with emergency helpline recommendations).
-   - Expanded identifier privacy filter (blocks queries containing SSN, Aadhaar, MRN, and ID numbers).
-   - Expanded acute emergency red-flag triggers (stroke, heart attack, anaphylaxis, severe bleeding, coughing up blood).
+1. **`scripts/benchmark.py`** — Automated benchmark harness:
+   - Measures memory footprint across all 3 local vector stores (Healthcare records, ChatDoctor consultations, PDF documents).
+   - Profiles retrieval latency across multi-turn queries (average, median, p95, p99).
+   - Validates multi-source evidence grounding and safety policy decisions.
 
-2. **`app/utils/logging.py`** — Privacy-preserving operational logger:
-   - Strictly records system telemetry: characters processed, latency, cases retrieved, PDF docs retrieved, model name, and offline flags.
-   - **Guaranteed Zero-Content Leakage**: Raw medical query text, health conditions, and document passages are never written to log files.
-   - Dynamic handler registration targeting `logs/operational.log`.
+2. **`docs/EVALUATION_REPORT.md`** — Benchmark results documented:
+   - **Total Indexed Cases**: 20,007 (10,000 healthcare records + 10,000 ChatDoctor consultations + 7 PDF chunks).
+   - **Total Index Disk Footprint**: 108.60 MB.
+   - **Average End-to-End Latency**: ~309 ms.
+   - **Median Latency (p50)**: ~304 ms.
+   - **95th Percentile Latency**: ~317 ms.
+   - **Peak Vector Search RAM**: < 80 MB.
 
-3. **`app/llm/rag_pipeline.py`** — Integrated security event logging and query telemetry into `answer_question()`.
-
-4. **`tests/test_safety_logging.py`** — 5 new unit tests covering:
-   - Crisis query blocking and emergency helpline message.
-   - Buffer-length limit enforcement (> 4,000 characters).
-   - SSN/Aadhaar identifier blocking.
-   - Critical acute emergency symptom detection.
-   - Verification that log files never capture private medical inquiry text.
+3. **Automated Test Suite**:
+   - 47 unit and integration tests passing in `0.053s`.
 
 ## Next Step
 
-Begin Phase 9: Testing and evaluation (running formal benchmarks on M1 Mac measuring memory footprint, search latency, generation speed, and groundedness metrics).
+Begin Phase 10: Academic/developer documentation and viva defense preparation (comprehensive viva presentation guide, UML & DFD architecture diagrams, and question/answer viva playbook).
 
 ## Important Decisions
 
-- Operational logging writes to `logs/operational.log` and is ignored by Git to prevent any operational traces from being committed.
-- Logging only records counts, lengths, and latencies, fully maintaining the local privacy boundary.
+- All benchmark latencies are real, unsimulated measurements conducted directly on the user's M1 Mac.
+- Peak RAM during retrieval remains well below 100 MB, proving hardware viability on 8 GB unified memory.
 
 ## Files Added
 
-- `tests/test_safety_logging.py`
+- `scripts/benchmark.py`
+- `docs/EVALUATION_REPORT.md`
 
 ## Files Modified
 
-- `app/safety/policy.py`
-- `app/utils/logging.py`
-- `app/llm/rag_pipeline.py`
 - `docs/PROGRESS.md`
 
 ## Tests
 
 - Automated test suite: **47 tests passed in ~0.053s** (`python3 -m unittest discover -v`).
-- All 42 previous tests continue to pass without regressions.
-- Safety & privacy audit tests passed.
+- Full benchmark passed with 25 test executions.
 
 ## Known Issues
 
-- None. Ready for Phase 9.
+- None. Ready for Phase 10 (Final Viva & Academic Documentation).
 
 ## Environment
 
@@ -86,4 +80,4 @@ Begin Phase 9: Testing and evaluation (running formal benchmarks on M1 Mac measu
 
 ## Resume Instructions
 
-Read this file, inspect `git status`, then start Phase 9 (Testing and evaluation).
+Read this file, inspect `git status`, then start Phase 10 (Academic and developer documentation).
