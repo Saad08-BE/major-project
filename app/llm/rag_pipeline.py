@@ -14,6 +14,7 @@ from app.retrieval.dataset_retriever import DatasetRetriever, RetrievalContext
 from app.retrieval.document_retriever import DocumentRetriever, DocumentSearchResult
 from app.retrieval.vector_store import VectorSearchResult
 from app.safety import SafetyDecision, healthcare_disclaimer, validate_question
+from app.utils.logging import configure_logging, log_rag_query, log_security_event
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,7 @@ class HealthcareRAGPipeline:
         self.document_retriever = document_retriever
         self.ollama = ollama_client
         self.settings = settings
+        self.logger = configure_logging(settings.paths.logs_dir, debug=settings.debug)
 
     @classmethod
     def initialize(cls, settings: AppSettings | None = None) -> "HealthcareRAGPipeline":
@@ -101,6 +103,7 @@ class HealthcareRAGPipeline:
         # --- 1. Safety Triage ---
         safety = validate_question(question)
         if not safety.allowed:
+            log_security_event(self.logger, "SAFETY_BLOCK", f"allowed=False urgent={safety.urgent}")
             return RAGResponse(
                 question=question,
                 answer=safety.user_message,
@@ -167,6 +170,17 @@ class HealthcareRAGPipeline:
             )
 
         total_time = round(time.time() - start_time, 3)
+
+        log_rag_query(
+            logger=self.logger,
+            query_length=len(question),
+            retrieved_case_count=len(context.evidence_records),
+            retrieved_doc_count=len(doc_results),
+            latency_seconds=total_time,
+            model=used_model,
+            is_offline=is_fallback,
+            urgent=safety.urgent,
+        )
 
         return RAGResponse(
             question=question,

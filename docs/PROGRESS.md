@@ -6,7 +6,7 @@ Local Privacy-Based Healthcare Intelligence System
 
 ## Current Phase
 
-Phase 7 — Streamlit Web UI
+Phase 8 — Safety, validation, logging, robustness
 
 ## Phase Status
 
@@ -22,67 +22,61 @@ COMPLETE
 - Phase 5 — PDF & medical document ingestion
 - Phase 6 — Unified hybrid RAG pipeline
 - Phase 7 — Streamlit Web UI
+- Phase 8 — Safety, validation, logging, robustness
 
 ## Current Work
 
-Built the complete interactive local web user interface with Streamlit:
+Built defensive multi-layer safety filters, operational telemetry logging, and robust failure boundaries:
 
-1. **`app/main.py`** — Modernized application shell:
-   - Full conversational chat interface with session history.
-   - Resource-cached pipeline loading (`st.cache_resource`) for instant responses.
-   - Prominent local privacy assurance banner and healthcare disclaimers.
-   - Clear history button and live response latency badges.
-   - Grounding evidence drawer rendered directly beneath each assistant answer.
+1. **`app/safety/policy.py`** — Multi-layer safety & triage guardrails:
+   - Buffer overflow / prompt injection guard (rejects queries > 4,000 characters).
+   - Crisis / self-harm detection filter (blocks dangerous self-harm queries with emergency helpline recommendations).
+   - Expanded identifier privacy filter (blocks queries containing SSN, Aadhaar, MRN, and ID numbers).
+   - Expanded acute emergency red-flag triggers (stroke, heart attack, anaphylaxis, severe bleeding, coughing up blood).
 
-2. **`app/ui/status.py`** — Sidebar system status panel:
-   - Live probe of local loopback Ollama daemon status.
-   - Model readiness check (`qwen2.5:3b`) with actionable download guidance if missing.
-   - Real-time local PDF document counter in `data/documents/`.
+2. **`app/utils/logging.py`** — Privacy-preserving operational logger:
+   - Strictly records system telemetry: characters processed, latency, cases retrieved, PDF docs retrieved, model name, and offline flags.
+   - **Guaranteed Zero-Content Leakage**: Raw medical query text, health conditions, and document passages are never written to log files.
+   - Dynamic handler registration targeting `logs/operational.log`.
 
-3. **`app/ui/uploader.py`** — Local PDF uploader & indexer:
-   - File drag-and-drop directly in the sidebar.
-   - Saves PDFs to `data/documents/` and automatically triggers chunking and local re-indexing without leaving the browser.
-   - Pipeline cache refresh on new document indexing.
+3. **`app/llm/rag_pipeline.py`** — Integrated security event logging and query telemetry into `answer_question()`.
 
-4. **`app/ui/evidence_viewer.py`** — Tabbed multi-source evidence inspector:
-   - **Tab 1: PDF Documents**: Exact retrieved passages with page-level citations (e.g., `Report.pdf (Page 2)`) and similarity scores.
-   - **Tab 2: Cohort Statistics**: Symptom-to-condition probabilities and treatment outcome distributions.
-   - **Tab 3: Consultations & Cases**: De-identified clinical consultations and cases with similarity metrics.
-
-5. **`tests/test_ui.py`** — Automated unit tests covering UI status checking and multi-tab evidence formatting.
+4. **`tests/test_safety_logging.py`** — 5 new unit tests covering:
+   - Crisis query blocking and emergency helpline message.
+   - Buffer-length limit enforcement (> 4,000 characters).
+   - SSN/Aadhaar identifier blocking.
+   - Critical acute emergency symptom detection.
+   - Verification that log files never capture private medical inquiry text.
 
 ## Next Step
 
-Begin Phase 8: Safety, Validation, Logging & System Robustness (privacy-preserving audit logger, multi-layer query sanitizer, and defensive error boundary handlers).
+Begin Phase 9: Testing and evaluation (running formal benchmarks on M1 Mac measuring memory footprint, search latency, generation speed, and groundedness metrics).
 
 ## Important Decisions
 
-- Streamlit runs strictly on local loopback (`127.0.0.1:8501`).
-- Evidence panel is rendered via an expandable drawer with tabs to keep the chat clean while making all citations 100% accessible and inspectable for academic demonstration and viva defense.
-- Pipeline caching ensures vector indices and embeddings are not reloaded on every user interaction.
+- Operational logging writes to `logs/operational.log` and is ignored by Git to prevent any operational traces from being committed.
+- Logging only records counts, lengths, and latencies, fully maintaining the local privacy boundary.
 
 ## Files Added
 
-- `app/ui/status.py`
-- `app/ui/uploader.py`
-- `app/ui/evidence_viewer.py`
-- `tests/test_ui.py`
+- `tests/test_safety_logging.py`
 
 ## Files Modified
 
-- `app/main.py`
-- `app/ui/__init__.py`
+- `app/safety/policy.py`
+- `app/utils/logging.py`
+- `app/llm/rag_pipeline.py`
 - `docs/PROGRESS.md`
 
 ## Tests
 
-- Automated test suite: **42 tests passed in ~0.046s** (`python3 -m unittest discover -v`).
-- All 40 previous tests continue to pass without regressions.
-- UI component tests passed.
+- Automated test suite: **47 tests passed in ~0.053s** (`python3 -m unittest discover -v`).
+- All 42 previous tests continue to pass without regressions.
+- Safety & privacy audit tests passed.
 
 ## Known Issues
 
-- None. Ready for Phase 8.
+- None. Ready for Phase 9.
 
 ## Environment
 
@@ -92,4 +86,4 @@ Begin Phase 8: Safety, Validation, Logging & System Robustness (privacy-preservi
 
 ## Resume Instructions
 
-Read this file, inspect `git status`, then start Phase 8 (Safety, validation, logging, and robustness).
+Read this file, inspect `git status`, then start Phase 9 (Testing and evaluation).
