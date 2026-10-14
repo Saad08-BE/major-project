@@ -6,7 +6,7 @@ Local Privacy-Based Healthcare Intelligence System
 
 ## Current Phase
 
-Phase 6 — Unified hybrid RAG pipeline
+Phase 7 — Streamlit Web UI
 
 ## Phase Status
 
@@ -21,66 +21,68 @@ COMPLETE
 - Phase 4 — Local LLM integration
 - Phase 5 — PDF & medical document ingestion
 - Phase 6 — Unified hybrid RAG pipeline
+- Phase 7 — Streamlit Web UI
 
 ## Current Work
 
-Implemented the complete unified RAG pipeline connecting all evidence sources into one coherent query-to-answer loop:
+Built the complete interactive local web user interface with Streamlit:
 
-1. **`app/llm/rag_pipeline.py`** — `HealthcareRAGPipeline` upgraded to:
-   - Accept `DocumentRetriever` as a second component alongside `DatasetRetriever`.
-   - Query both sources in sequence for every valid question.
-   - Merge dataset evidence (cohort statistics + ChatDoctor consultations + semantic cases) with PDF document chunks into a single unified LLM prompt.
-   - Expose `document_sources: list[DocumentSearchResult]` on `RAGResponse` so the UI can display page-level citations separately from dataset evidence.
-   - Offline fallback now also summarises local document evidence when the LLM is unavailable.
-   - `initialize()` factory automatically loads `DocumentRetriever` from `vector_store/document_index_*`.
+1. **`app/main.py`** — Modernized application shell:
+   - Full conversational chat interface with session history.
+   - Resource-cached pipeline loading (`st.cache_resource`) for instant responses.
+   - Prominent local privacy assurance banner and healthcare disclaimers.
+   - Clear history button and live response latency badges.
+   - Grounding evidence drawer rendered directly beneath each assistant answer.
 
-2. **`app/llm/prompts.py`** — `build_grounded_prompt` extended with an optional `document_context_block` parameter. System prompt updated to instruct the LLM to cite all three source types (cohort stats, clinical cases, uploaded documents).
+2. **`app/ui/status.py`** — Sidebar system status panel:
+   - Live probe of local loopback Ollama daemon status.
+   - Model readiness check (`qwen2.5:3b`) with actionable download guidance if missing.
+   - Real-time local PDF document counter in `data/documents/`.
 
-3. **`tests/test_rag_pipeline.py`** — 17 new unit and integration tests covering:
-   - Safety blocking (blocked queries never reach retrieval/LLM).
-   - Both retrieval sources called for valid queries.
-   - `document_sources` and `retrieved_cases` correctly populated.
-   - Online LLM path (`is_offline_fallback=False`).
-   - Offline fallback path including document evidence.
-   - Empty-evidence offline fallback.
-   - Urgent query prepends URGENT MEDICAL NOTICE.
-   - Latency field non-negative.
-   - Disclaimer always present.
-   - `_build_document_context_block` helper.
-   - `build_grounded_prompt` with and without document blocks.
+3. **`app/ui/uploader.py`** — Local PDF uploader & indexer:
+   - File drag-and-drop directly in the sidebar.
+   - Saves PDFs to `data/documents/` and automatically triggers chunking and local re-indexing without leaving the browser.
+   - Pipeline cache refresh on new document indexing.
 
-4. **`tests/test_llm.py`** — Updated three existing pipeline tests to pass the new `document_retriever` positional argument.
+4. **`app/ui/evidence_viewer.py`** — Tabbed multi-source evidence inspector:
+   - **Tab 1: PDF Documents**: Exact retrieved passages with page-level citations (e.g., `Report.pdf (Page 2)`) and similarity scores.
+   - **Tab 2: Cohort Statistics**: Symptom-to-condition probabilities and treatment outcome distributions.
+   - **Tab 3: Consultations & Cases**: De-identified clinical consultations and cases with similarity metrics.
+
+5. **`tests/test_ui.py`** — Automated unit tests covering UI status checking and multi-tab evidence formatting.
 
 ## Next Step
 
-Begin Phase 7: Streamlit Web UI — chat interface, document upload, sources/evidence panel, system status bar, and persistent healthcare disclaimers.
+Begin Phase 8: Safety, Validation, Logging & System Robustness (privacy-preserving audit logger, multi-layer query sanitizer, and defensive error boundary handlers).
 
 ## Important Decisions
 
-- `document_sources` is kept separate from `retrieved_cases` in `RAGResponse` so the UI can render dataset evidence and PDF citations in distinct panels.
-- The `DocumentRetriever` is loaded silently; if no document index exists the pipeline still works with dataset evidence only.
-- The LLM prompt clearly labels three evidence sections to prevent confusion between data sources.
+- Streamlit runs strictly on local loopback (`127.0.0.1:8501`).
+- Evidence panel is rendered via an expandable drawer with tabs to keep the chat clean while making all citations 100% accessible and inspectable for academic demonstration and viva defense.
+- Pipeline caching ensures vector indices and embeddings are not reloaded on every user interaction.
 
 ## Files Added
 
-- `tests/test_rag_pipeline.py`
+- `app/ui/status.py`
+- `app/ui/uploader.py`
+- `app/ui/evidence_viewer.py`
+- `tests/test_ui.py`
 
 ## Files Modified
 
-- `app/llm/rag_pipeline.py`
-- `app/llm/prompts.py`
-- `tests/test_llm.py`
+- `app/main.py`
+- `app/ui/__init__.py`
 - `docs/PROGRESS.md`
 
 ## Tests
 
-- Automated test suite: **40 tests passed in ~0.04s** (`python3 -m unittest discover -v`).
-- All previous 23 tests still pass (no regressions).
-- 17 new tests added covering the unified pipeline.
+- Automated test suite: **42 tests passed in ~0.046s** (`python3 -m unittest discover -v`).
+- All 40 previous tests continue to pass without regressions.
+- UI component tests passed.
 
 ## Known Issues
 
-- None at the pipeline level. Phase 7 (Streamlit UI) will expose the full system interactively.
+- None. Ready for Phase 8.
 
 ## Environment
 
@@ -90,4 +92,4 @@ Begin Phase 7: Streamlit Web UI — chat interface, document upload, sources/evi
 
 ## Resume Instructions
 
-Read this file, inspect `git status`, then start Phase 7 (Streamlit Web UI).
+Read this file, inspect `git status`, then start Phase 8 (Safety, validation, logging, and robustness).
