@@ -1,4 +1,4 @@
-"""Unit tests for Phase 7 Streamlit UI components and logic."""
+"""Unit tests for Phase 7 Streamlit UI components and chat session state."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from app.llm.rag_pipeline import RAGResponse
 from app.retrieval.document_retriever import DocumentSearchResult
 from app.retrieval.vector_store import VectorSearchResult
 from app.safety.policy import SafetyDecision
+from app.ui.chat_state import ChatSession, get_current_session, initialize_session_state
 from app.ui.evidence_viewer import render_evidence_panel
 from app.ui.status import render_sidebar_status
 
@@ -67,6 +68,27 @@ class UITests(unittest.TestCase):
         render_evidence_panel(mock_st, response)
         mock_st.expander.assert_called_once()
         mock_st.tabs.assert_called_once()
+
+    def test_chat_session_state_and_auto_title(self) -> None:
+        """Verify ChatSession auto-titling from user query and message persistence."""
+        session = ChatSession.create_new(title="New Consultation")
+        self.assertEqual(session.title, "New Consultation")
+
+        # First message should auto-title
+        session.add_message("user", "What are the common symptoms of asthma?")
+        self.assertTrue(session.title.startswith("What are the common"))
+        self.assertEqual(len(session.messages), 1)
+
+        # Assistant response should be appended
+        session.add_message("assistant", "Common symptoms include wheezing and shortness of breath.")
+        self.assertEqual(len(session.messages), 2)
+
+    def test_temporary_chat_mode_isolation(self) -> None:
+        """Verify temporary chat session remains marked as temporary."""
+        temp_sess = ChatSession.create_new(is_temporary=True)
+        self.assertTrue(temp_sess.is_temporary)
+        temp_sess.add_message("user", "Secret question that shouldn't change title")
+        self.assertEqual(temp_sess.title, "🔒 Temporary Consultation")
 
 
 if __name__ == "__main__":

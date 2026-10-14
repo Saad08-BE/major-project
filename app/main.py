@@ -7,9 +7,11 @@ import streamlit as st
 from app.config import AppSettings, SettingsError
 from app.llm.rag_pipeline import HealthcareRAGPipeline, RAGResponse
 from app.safety import healthcare_disclaimer
+from app.ui.chat_state import get_current_session, initialize_session_state
 from app.ui.evidence_viewer import render_evidence_panel
-from app.ui.status import render_sidebar_status
-from app.ui.uploader import render_document_uploader
+from app.ui.input_controls import render_input_controls
+from app.ui.settings_dialog import render_settings_dialog
+from app.ui.sidebar import render_sidebar_navigation
 
 
 @st.cache_resource(show_spinner="Initializing local healthcare intelligence engine...")
@@ -35,68 +37,87 @@ def run() -> None:
         st.error(f"Local configuration error: {exc}")
         st.stop()
 
-    # 2. Sidebar Navigation: Status & Document Ingestion
-    status_info = render_sidebar_status(st, settings)
-    reindexed = render_document_uploader(st, settings)
-    if reindexed:
-        st.cache_resource.clear()
-        st.rerun()
+    # 2. Session State Initialization
+    initialize_session_state(st)
 
-    # 3. Main Header & Local Privacy Banner
-    st.title("Local Privacy-Based Healthcare Intelligence System")
-    st.markdown(
-        """
-        <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 10px 14px; border-radius: 4px; margin-bottom: 15px;">
-            <strong style="color: #15803d;">🔒 Privacy-First Guarantee:</strong>
-            <span style="color: #166534;"> All queries, healthcare datasets, medical PDFs, embeddings, and language model inference run <strong>100% locally on your machine</strong>. No data ever leaves your computer.</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    # 3. Settings Dialog / Modal check
+    if st.session_state.show_settings_dialog:
+        with st.container():
+            render_settings_dialog(st, settings)
+            if st.button("✕ Close Settings", type="secondary"):
+                st.session_state.show_settings_dialog = False
+                st.rerun()
+            st.divider()
+
+    # 4. Left Sidebar Navigation: Top "New Chat", Searchable History, Fixed Bottom "Settings"
+    render_sidebar_navigation(st, settings)
+
+    # 5. Main Header & Banner
+    current_session = get_current_session(st)
+
+    if st.session_state.temp_mode:
+        st.markdown(
+            """
+            <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 10px 14px; border-radius: 4px; margin-bottom: 15px;">
+                <strong style="color: #b91c1c;">🔒 Temporary Consultation Mode Active:</strong>
+                <span style="color: #991b1b;"> Messages in this session will not be saved to your consultation history.</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            """
+            <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 10px 14px; border-radius: 4px; margin-bottom: 15px;">
+                <strong style="color: #15803d;">🔒 Privacy-First Guarantee:</strong>
+                <span style="color: #166534;"> All queries, healthcare records, medical PDFs, embeddings, and language model inference run <strong>100% locally on your machine</strong>. Zero cloud telemetry.</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.subheader(f"💬 {current_session.title}")
     st.caption(f"Educational System Notice: {healthcare_disclaimer()}")
 
-    # 4. Session State for Chat History
-    if "chat_messages" not in st.session_state:
-        st.session_state.chat_messages = []
-
-    # Clear chat button in sidebar
-    if st.sidebar.button("🗑️ Clear Conversation History"):
-        st.session_state.chat_messages = []
-        st.rerun()
-
-    # 5. Render Historical Chat Conversation
-    for msg in st.session_state.chat_messages:
+    # 6. Render Current Session Messages
+    for msg in current_session.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
             if "response" in msg and msg["response"] is not None:
                 render_evidence_panel(st, msg["response"])
 
-    # 6. Chat Input & Live Query Processing
+    # 7. Action Bar above Chat Input (+ PDF, Model Picker, Temporary Chat toggle)
+    selected_model, is_temp = render_input_controls(st, settings)
+
+    # 8. Chat Input Box
     user_query = st.chat_input("Ask a healthcare question, describe symptoms, or inquire about uploaded medical reports...")
 
     if user_query:
-        # Display user question
-        st.session_state.chat_messages.append({"role": "user", "content": user_query})
+        # Append user message
+        current_session.add_message(role="user", content=user_query)
         with st.chat_message("user"):
             st.markdown(user_query)
 
-        # Execute Pipeline
+        # Run pipeline with preferred model override
         pipeline = get_pipeline(settings)
         with st.chat_message("assistant"):
-            with st.spinner("Analyzing evidence from local datasets & medical reports..."):
-                response: RAGResponse = pipeline.answer_question(user_query)
+            with st.spinner(f"Analyzing local clinical evidence using `{selected_model}`..."):
+                response: RAGResponse = pipeline.answer_question(
+                    user_query,
+                    model_override=selected_model,
+                )
 
             # Display urgent warning if triggered
             if response.urgent_warning:
                 st.warning("⚠️ **Urgent Medical Notice**: Emergency or severe symptoms detected. Please seek immediate professional or emergency care.")
 
-            # Display response text
+            # Display answer
             st.markdown(response.answer)
 
-            # Display meta-information footer
-            mode_badge = "🟢 Local LLM" if not response.is_offline_fallback else "🟡 Direct Evidence Synthesis (LLM Offline)"
+            # Execution badge
+            mode_badge = f"🟢 Local LLM ({response.llm_model})" if not response.is_offline_fallback else "🟡 Direct Evidence Synthesis (LLM Offline)"
             st.caption(
-                f"⏱️ Response latency: `{response.total_latency_seconds:.2f}s` | "
+                f"⏱️ Latency: `{response.total_latency_seconds:.2f}s` | "
                 f"Execution mode: {mode_badge} | "
                 f"Evidence: `{len(response.document_sources)}` PDF doc(s), `{len(response.retrieved_cases)}` clinical case(s)"
             )
@@ -104,12 +125,8 @@ def run() -> None:
             # Render Grounding Evidence Panel
             render_evidence_panel(st, response)
 
-            # Save assistant message to state
-            st.session_state.chat_messages.append({
-                "role": "assistant",
-                "content": response.answer,
-                "response": response,
-            })
+            # Save assistant response
+            current_session.add_message(role="assistant", content=response.answer, response=response)
 
 
 if __name__ == "__main__":

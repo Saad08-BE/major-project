@@ -88,7 +88,7 @@ class HealthcareRAGPipeline:
             settings=app_settings,
         )
 
-    def answer_question(self, question: str) -> RAGResponse:
+    def answer_question(self, question: str, model_override: str | None = None) -> RAGResponse:
         """Run full unified RAG pipeline for a user question.
 
         Evidence sources, in priority order:
@@ -99,6 +99,7 @@ class HealthcareRAGPipeline:
           5. Graceful offline fallback when Ollama is unavailable.
         """
         start_time = time.time()
+        effective_model = (model_override or self.settings.llm_model).strip()
 
         # --- 1. Safety Triage ---
         safety = validate_question(question)
@@ -148,7 +149,7 @@ class HealthcareRAGPipeline:
         try:
             llm_result: LLMGenerationResult = self.ollama.generate(
                 prompt=grounded_prompt,
-                model=self.settings.llm_model,
+                model=effective_model,
                 system=HEALTHCARE_SYSTEM_PROMPT,
                 temperature=0.2,
             )
