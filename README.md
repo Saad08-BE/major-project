@@ -3,7 +3,7 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![Privacy: 100% Local](https://img.shields.io/badge/privacy-100%25%20Local-green.svg)]()
 [![Hardware: Apple Silicon M1](https://img.shields.io/badge/hardware-MacBook%20Air%20M1%208GB-orange.svg)]()
-[![Tests: 23 Passed](https://img.shields.io/badge/tests-23%20passed%20(0.017s)-brightgreen.svg)]()
+[![Tests: 51 Passed](https://img.shields.io/badge/tests-51%20passed-brightgreen.svg)]()
 
 A modular, privacy-first, locally-hosted **Healthcare Retrieval-Augmented Generation (RAG)** application designed for academic demonstration and final-year engineering defense. 
 
@@ -74,15 +74,15 @@ The system retrieves clinical evidence from both structured healthcare records, 
 | **Phase 3** | Local Retrieval & Vector Indexing | ✅ **COMPLETE** | 384-d normalized dense embeddings, custom disk-persisted vector store ($<50$ MB), $<5$ ms cosine similarity search. |
 | **Phase 4** | Local LLM Integration (Ollama 3B) | ✅ **COMPLETE** | Ollama adapter on Apple Silicon Metal, strict grounding prompts, graceful offline degradation, CLI query tool. |
 | **Phase 5** | PDF & Document Ingestion | ✅ **COMPLETE** | Local PyMuPDF extractor, sentence-aware sliding window chunker, document vector index, page-level citations. |
-| **Phase 6** | **Unified Complete Hybrid RAG Pipeline** | ⏳ **NEXT** | Unifying dataset cohorts, ChatDoctor consultations, and PDF documents into a single query loop with source attribution. |
-| **Phase 7** | **Streamlit Web User Interface** | ⏳ Pending | Clean local UI with chat history, PDF upload drawer, source inspector, and system health status. |
-| **Phase 8** | **Safety, Logging & System Robustness** | ⏳ Pending | Multi-layer input sanitization, privacy-preserving operational logger, edge case handling. |
-| **Phase 9** | **Testing, Benchmarking & Evaluation** | ⏳ Pending | End-to-end latency & memory measurements on M1, retrieval accuracy, hallucination evaluation. |
-| **Phase 10**| **Academic & Viva Defense Documentation**| ⏳ Pending | Architecture diagrams (UML/DFD/ERD), comprehensive viva defense guide, project viva presentation slides. |
+| **Phase 6** | **Unified Complete Hybrid RAG Pipeline** | ✅ **COMPLETE** | Dataset, ChatDoctor, and PDF evidence are retrieved in one grounded query loop. |
+| **Phase 7** | **Streamlit Web User Interface** | ✅ **COMPLETE** | Local chat UI with history, PDF upload, source inspector, status, and settings. |
+| **Phase 8** | **Safety, Logging & System Robustness** | ✅ **COMPLETE** | Input validation, privacy-preserving logging, and safety triage are covered. |
+| **Phase 9** | **Testing, Benchmarking & Evaluation** | ✅ **COMPLETE** | Unit/integration coverage and local benchmark tooling are included. |
+| **Phase 10**| **Academic & Viva Defense Documentation**| ✅ **COMPLETE** | Architecture, evaluation, progress, and viva-defense documents are included. |
 
 ---
 
-## 🛠️ Summary of Completed Work (Phases 0 to 5)
+## 🛠️ Summary of Completed Work (Phases 0 to 10)
 
 ### 1. Dual Dataset Ingestion & Preprocessing (Phase 2 & Dataset Update)
 - **`Indian_healthcare.csv`**: Analyzed 100,000 tabular hospital records, removed 81 non-physiological outliers (negative glucose), removed all `Patient_ID` fields for privacy, generated a 10,000-record stratified sample, and computed cohort statistical distributions (`data/processed/cohort_aggregates.json`).
@@ -137,7 +137,7 @@ pip install -r requirements.txt
 ```
 
 ### 3. Run Automated Tests
-Verify all 23 unit tests pass:
+Verify all unit and integration tests pass:
 ```bash
 python3 -m unittest discover -v
 ```
@@ -163,6 +163,13 @@ Place any medical report or guideline PDF into `data/documents/`, then run:
 ```bash
 python3 scripts/ingest_documents.py
 ```
+
+### 7. Launch the Web Interface
+```bash
+streamlit run app/main.py
+```
+
+The included Streamlit configuration binds the interface to `127.0.0.1` only.
 
 ---
 
@@ -191,7 +198,7 @@ local privacy-based health care intelligence system/
 │   ├── preprocess_dataset.py    # Dataset cleaning & sampling CLI
 │   ├── preprocess_chatdoctor.py # ChatDoctor cleaning CLI
 │   └── profile_dataset.py       # Zero-dependency dataset profiler
-├── tests/               # 23 automated unit & integration tests
+├── tests/               # Automated unit & integration tests
 ├── docs/                # Architecture, profiling, and progress reports
 ├── requirements.txt     # Lightweight non-CUDA dependencies
 └── README.md            # Master project documentation

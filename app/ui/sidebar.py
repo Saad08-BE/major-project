@@ -80,25 +80,14 @@ def render_sidebar_navigation(st_module, settings: AppSettings) -> dict[str, boo
                 st_module.session_state.temp_mode = False
                 st_module.rerun()
 
-    # 4. Fixed Bottom User Profile & Settings Drawer (matching screenshot bottom left)
     st_module.sidebar.divider()
-    user_col1, user_col2 = st_module.sidebar.columns([3, 1])
-    with user_col1:
-        st_module.markdown(
-            """
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <div style="background: #3c4043; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; color: #e8eaed;">S</div>
-                <div>
-                    <div style="font-size: 0.85rem; font-weight: 500; color: #e3e3e3; line-height: 1.1;">Saad</div>
-                    <div style="font-size: 0.72rem; color: #9aa0a6;">Local User</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with user_col2:
-        if st_module.button("⚙️", help="Open local system status & settings", key="btn_open_settings_icon"):
-            st_module.session_state.show_settings_dialog = True
-            st_module.rerun()
+    if st_module.sidebar.button(
+        "⚙️ Settings & system status",
+        key="btn_open_settings",
+        use_container_width=True,
+    ):
+        st_module.session_state.show_settings_dialog = True
+        actions["settings_clicked"] = True
+        st_module.rerun()
 
     return actions

@@ -106,16 +106,82 @@ div[data-testid="stSidebar"] button[kind="secondary"]:hover {
     color: #ffffff;
 }
 
-/* Chat Input Bar (Floating pill look) */
-[data-testid="stChatInput"] {
-    background-color: #1a1e24 !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+/* ── Unified Chat Input Pill (Form) ── */
+[data-testid="stForm"] {
+    background: #1a1e24 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
     border-radius: 28px !important;
+    padding: 2px 6px 2px 4px !important;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+    margin-bottom: 0 !important;
 }
 
-[data-testid="stChatInput"] textarea {
+/* Remove extra padding Streamlit adds around the form's inner block */
+[data-testid="stForm"] > div:first-child {
+    padding: 0 !important;
+    gap: 0 !important;
+}
+
+/* Text input inside the pill — borderless, transparent */
+[data-testid="stForm"] [data-testid="stTextInput"] input {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
     color: #f1f3f4 !important;
+    font-size: 0.95rem !important;
+    padding: 12px 6px !important;
+}
+
+[data-testid="stForm"] [data-testid="stTextInput"] > div {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+/* Model selector inside the pill — pill-shaped border */
+[data-testid="stForm"] [data-testid="stSelectbox"] > div[data-baseweb="select"] > div {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-radius: 20px !important;
+    color: #e3e3e3 !important;
+    font-size: 0.84rem !important;
+    min-height: 34px !important;
+}
+
+/* + attach form submit button */
+[data-testid="stForm"] button[kind="secondaryFormSubmit"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 50% !important;
+    color: #9aa0a6 !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    padding: 0 !important;
+    font-size: 1.05rem !important;
+    line-height: 36px !important;
+}
+
+[data-testid="stForm"] button[kind="secondaryFormSubmit"]:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #e3e3e3 !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* ➤ Send primary form submit button */
+[data-testid="stForm"] button[kind="primaryFormSubmit"] {
+    background: transparent !important;
+    border: none !important;
+    color: #8ab4f8 !important;
+    font-size: 1.15rem !important;
+    padding: 4px 10px !important;
+    border-radius: 50% !important;
+}
+
+[data-testid="stForm"] button[kind="primaryFormSubmit"]:hover {
+    background: rgba(138, 180, 248, 0.12) !important;
+    color: #aecbfa !important;
 }
 
 /* Action bar above input */

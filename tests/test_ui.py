@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+import tempfile
 from unittest.mock import MagicMock
 import unittest
 
@@ -13,6 +15,7 @@ from app.safety.policy import SafetyDecision
 from app.ui.chat_state import ChatSession, get_current_session, initialize_session_state
 from app.ui.evidence_viewer import render_evidence_panel
 from app.ui.status import render_sidebar_status
+from app.ui.input_controls import _safe_pdf_destination
 
 
 class UITests(unittest.TestCase):
@@ -89,6 +92,24 @@ class UITests(unittest.TestCase):
         self.assertTrue(temp_sess.is_temporary)
         temp_sess.add_message("user", "Secret question that shouldn't change title")
         self.assertEqual(temp_sess.title, "🔒 Temporary Consultation")
+
+    def test_pdf_upload_destination_is_local_and_does_not_overwrite(self) -> None:
+        """Uploaded filenames must not escape the document directory or replace a prior file."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            document_dir = Path(tmp_dir)
+            (document_dir / "report.pdf").write_bytes(b"existing")
+
+            destination = _safe_pdf_destination(document_dir, "../../report.pdf")
+
+            self.assertEqual(destination.parent, document_dir)
+            self.assertEqual(destination.name, "report_1.pdf")
+            self.assertEqual((document_dir / "report.pdf").read_bytes(), b"existing")
+
+    def test_pdf_upload_destination_rejects_non_pdf(self) -> None:
+        """The document repository only accepts PDF upload names."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaises(ValueError):
+                _safe_pdf_destination(Path(tmp_dir), "medical-notes.txt")
 
 
 if __name__ == "__main__":

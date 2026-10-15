@@ -43,7 +43,7 @@ Completed the full final academic deliverables, evaluation benchmarks, and viva 
    - Polished Streamlit web application with chat interface, PDF uploader, sidebar system status monitor, and multi-tab grounding evidence drawer.
 
 4. **`tests/`**:
-   - Complete automated test suite of **47 unit & integration tests passing in ~0.05s**.
+   - Complete automated test suite of **51 unit & integration tests**.
 
 ## Project Complete Summary
 
@@ -63,7 +63,7 @@ The project is fully built, tested, documented, and ready for academic demonstra
 ## Run Instructions
 
 ```bash
-# 1. Run unit test suite (47 tests):
+# 1. Run unit and integration test suite:
 python3 -m unittest discover -v
 
 # 2. Run system benchmarks:

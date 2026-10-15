@@ -9,8 +9,7 @@ if TYPE_CHECKING:
     import streamlit as st
 
 from app.config.settings import AppSettings
-from app.ingestion.pdf_ingestor import PDFIngestor
-from app.retrieval.document_retriever import DocumentRetriever
+from app.ui.input_controls import save_and_index_pdf
 
 
 def render_document_uploader(st_module, settings: AppSettings) -> bool:
@@ -28,27 +27,16 @@ def render_document_uploader(st_module, settings: AppSettings) -> bool:
     if uploaded_file is not None:
         save_btn = st_module.sidebar.button("Index Document Locally", type="primary")
         if save_btn:
-            doc_dir = settings.paths.documents_dir
-            doc_dir.mkdir(parents=True, exist_ok=True)
-            target_path = doc_dir / uploaded_file.name
-
-            with open(target_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-
             with st_module.sidebar.status("Processing PDF locally..."):
-                ingestor = PDFIngestor(
-                    chunk_size=settings.chunk_size,
-                    chunk_overlap=settings.chunk_overlap,
-                )
                 try:
-                    chunks = ingestor.process_file(target_path)
-                    retriever = DocumentRetriever(embedding_model=None)
-                    # Reindex all documents in the directory
-                    all_chunks = ingestor.process_directory(doc_dir)
-                    retriever.index_chunks(all_chunks, settings.paths.vector_store_dir)
-                    st_module.sidebar.success(f"Indexed {len(chunks)} chunk(s) from `{uploaded_file.name}`!")
+                    destination, chunk_count = save_and_index_pdf(
+                        uploaded_file.name,
+                        uploaded_file.getvalue(),
+                        settings,
+                    )
+                    st_module.sidebar.success(f"Indexed {chunk_count} chunk(s) from `{destination.name}`!")
                     return True
-                except Exception as exc:
+                except (OSError, ValueError, RuntimeError) as exc:
                     st_module.sidebar.error(f"Failed to index: {exc}")
                     return False
 

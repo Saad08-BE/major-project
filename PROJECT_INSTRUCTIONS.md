@@ -169,15 +169,15 @@ local privacy-based health care intelligence system/
 |---|---|---|
 | 0 | Repository & dataset inspection | COMPLETE |
 | 1 | Architecture & project foundation | COMPLETE |
-| 2 | Dataset analysis & preprocessing | **NEXT** |
-| 3 | Local retrieval & indexing | Pending |
-| 4 | Local LLM integration (Ollama) | Pending |
-| 5 | PDF/document ingestion | Pending |
-| 6 | Complete RAG pipeline | Pending |
-| 7 | Web UI (Streamlit) | Pending |
-| 8 | Safety, validation, logging, robustness | Pending |
-| 9 | Testing & evaluation | Pending |
-| 10 | Academic & viva documentation | Pending |
+| 2 | Dataset analysis & preprocessing | COMPLETE |
+| 3 | Local retrieval & indexing | COMPLETE |
+| 4 | Local LLM integration (Ollama) | COMPLETE |
+| 5 | PDF/document ingestion | COMPLETE |
+| 6 | Complete RAG pipeline | COMPLETE |
+| 7 | Web UI (Streamlit) | COMPLETE |
+| 8 | Safety, validation, logging, robustness | COMPLETE |
+| 9 | Testing & evaluation | COMPLETE |
+| 10 | Academic & viva documentation | COMPLETE |
 
 One phase at a time. Conclude each phase with tests, git commit, and report (§30).
 
