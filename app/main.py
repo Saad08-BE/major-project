@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+import sys
+
+# Streamlit executes this file as a script, so explicitly expose the project
+# root before importing the top-level ``app`` package.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import streamlit as st
 
 from app.config import AppSettings, SettingsError
